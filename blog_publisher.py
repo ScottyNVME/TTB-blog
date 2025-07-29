@@ -2,6 +2,7 @@ import os
 import openai
 import datetime
 import subprocess
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -10,13 +11,10 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Constants
 BLOG_DIR = "/Users/savedis/Documents/TTB-blog/_posts"
-TOPICS = [
-    "grants",
-    "resume",
-    "essays"
-]
+IMAGE_DIR = "/Users/savedis/Documents/TTB-blog/assets/images"
+TOPICS = ["grants", "resume", "essays"]
 
-# Rotate topic based on an index file for better tracking
+# Rotate through topics using an index
 def get_topic_from_index():
     index_file = "topic_index.txt"
     if os.path.exists(index_file):
@@ -32,13 +30,12 @@ def get_topic_from_index():
 
     return topic
 
-# Create topic-specific prompt using your writing style and date
+# Inject your writing style into the prompt
 def generate_prompt(topic):
     today = datetime.date.today()
     current_month = today.strftime("%B")
     current_year = today.year
 
-    # Load your writing style sample
     with open("style_sample.txt", "r") as f:
         style = f.read().strip()
 
@@ -64,9 +61,28 @@ def generate_prompt(topic):
             f"Writing Style Example:\n{style}"
         )
 
-# Generate blog content from OpenAI
+# Generate image using DALL·E
+def generate_image(prompt, filename):
+    print("🖼️ Generating image...")
+    response = openai.images.generate(
+        model="dall-e-3",
+        prompt=prompt,
+        n=1,
+        size="1024x1024"
+    )
+    image_url = response.data[0].url
+    image_path = os.path.join(IMAGE_DIR, filename)
+
+    img_data = requests.get(image_url).content
+    with open(image_path, 'wb') as handler:
+        handler.write(img_data)
+
+    print(f"✅ Image saved: {image_path}")
+    return f"/assets/images/{filename}"
+
+# Use GPT to write the blog content
 def generate_post(prompt):
-    print(f"🧠 Generating blog post...")
+    print("🧠 Generating blog post...")
     response = openai.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
@@ -74,26 +90,30 @@ def generate_post(prompt):
     )
     return response.choices[0].message.content.strip()
 
-# Save post to markdown with front matter
+# Save blog and image to markdown
 def save_post(category, content):
     today = datetime.date.today()
     title = content.splitlines()[0].strip().replace("**", "")
     slug = title.lower().replace(" ", "-").replace(":", "").replace("?", "").replace("–", "-")
     filename = f"{today.strftime('%Y-%m-%d')}-{slug[:50]}.md"
     filepath = os.path.join(BLOG_DIR, filename)
+    image_filename = f"{slug[:50]}.png"
+    image_path = generate_image(f"Illustration for a blog post about {category}", image_filename)
 
     with open(filepath, "w") as f:
         f.write(f"---\n")
         f.write(f"title: \"{title}\"\n")
         f.write(f"layout: post\n")
         f.write(f"categories: {category}\n")
+        f.write(f"image: {image_path}\n")
         f.write(f"---\n\n")
+        f.write(f"![{title}]({image_path})\n\n")
         f.write(content)
 
     print(f"✅ Blog post saved: {filepath}")
     return filepath
 
-# Git automation with safe pull/push
+# Commit and push to GitHub
 def push_to_github():
     print("📤 Committing and pushing to GitHub...")
     repo_path = "/Users/savedis/Documents/TTB-blog"
@@ -103,7 +123,7 @@ def push_to_github():
     subprocess.run(["git", "push", "--set-upstream", "origin", "main"], cwd=repo_path)
     print("✅ Changes pushed to GitHub!")
 
-# Main runner
+# Main flow
 def run_blog_automation():
     print("🚀 Running blog automation now...")
     category = get_topic_from_index()
