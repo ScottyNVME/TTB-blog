@@ -16,12 +16,7 @@ TOPICS = [
     "essays"
 ]
 
-# Rotate topic based on ISO week number
-def get_weekly_topic():
-    week_number = datetime.date.today().isocalendar()[1]
-    return TOPICS[week_number % len(TOPICS)]
-
-# Load or create topic index to cycle evenly through topics
+# Rotate topic based on an index file for better tracking
 def get_topic_from_index():
     index_file = "topic_index.txt"
     if os.path.exists(index_file):
@@ -37,38 +32,41 @@ def get_topic_from_index():
 
     return topic
 
-# Create topic-specific prompt with current date
+# Create topic-specific prompt using your writing style and date
 def generate_prompt(topic):
     today = datetime.date.today()
     current_month = today.strftime("%B")
     current_year = today.year
 
+    # Load your writing style sample
+    with open("style_sample.txt", "r") as f:
+        style = f.read().strip()
+
     if topic == "resume":
         return (
-            f"Write a fresh 700–750 word blog post on resume writing that reflects new hiring trends "
-            f"or job market shifts. Reference current formatting expectations, action verbs, or examples used "
-            f"in recent top-tier resumes. Make it engaging, original, and practical for job seekers. "
-            f"Ensure that the advice is timely and relevant for {current_month} {current_year}, and incorporates "
-            f"or is inspired by currently trending keywords in the topic. Add a short call to action encouraging readers "
-            f"to learn more at tothroughbeyond.com."
+            f"Write a fresh 700–750 word blog post on resume writing using the writing style shown below. "
+            f"Reflect new hiring trends, job market shifts, formatting best practices, action verbs, and tone for {current_month} {current_year}. "
+            f"Ensure the post is timely, practical, original, and ends with a soft call to action pointing to tothroughbeyond.com.\n\n"
+            f"Writing Style Example:\n{style}"
         )
     elif topic == "essays":
         return (
-            f"Write a compelling 700–750 word blog post about how to write a standout college admissions essay. "
-            f"Focus on techniques that are timely for {current_month} {current_year} applicants, including recent prompts, "
-            f"examples from successful essays, or advice tailored to trends in selective school admissions. Include trending keywords "
-            f"or angles that may be popular in the news or education space, and end with a short call to action to visit tothroughbeyond.com."
+            f"Write a compelling 700–750 word blog post about crafting strong college essays. Match the tone and sentence flow of the writing sample provided below. "
+            f"Offer fresh advice on authenticity, structure, storytelling, and writing tips relevant to students in {current_month} {current_year}. "
+            f"Finish with a call to action leading readers to tothroughbeyond.com.\n\n"
+            f"Writing Style Example:\n{style}"
         )
     elif topic == "grants":
         return (
-            f"Write a 700–750 word blog post about college grants, scholarships, or student funding options that are relevant in {current_month} {current_year}. "
-            f"Highlight any recent updates in federal or private programs, trending searches, or seasonal application advice. "
-            f"Use trending financial aid keywords and give readers a reason to check out tothroughbeyond.com."
+            f"Write a 700–750 word blog post about finding and applying for college grants or scholarships. Use the writing style from the sample below. "
+            f"Incorporate relevant resources, deadlines, or new funding trends relevant to {current_month} {current_year}. "
+            f"Make it informative but relatable. Close with a soft CTA pointing to tothroughbeyond.com.\n\n"
+            f"Writing Style Example:\n{style}"
         )
 
-# Generate blog content with OpenAI
+# Generate blog content from OpenAI
 def generate_post(prompt):
-    print(f"🧠 Generating blog post for prompt: {prompt}")
+    print(f"🧠 Generating blog post...")
     response = openai.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
@@ -76,7 +74,7 @@ def generate_post(prompt):
     )
     return response.choices[0].message.content.strip()
 
-# Save content to markdown file with front matter
+# Save post to markdown with front matter
 def save_post(category, content):
     today = datetime.date.today()
     title = content.splitlines()[0].strip().replace("**", "")
@@ -95,22 +93,17 @@ def save_post(category, content):
     print(f"✅ Blog post saved: {filepath}")
     return filepath
 
-# Commit and push to GitHub (rebase-safe)
+# Git automation with safe pull/push
 def push_to_github():
     print("📤 Committing and pushing to GitHub...")
     repo_path = "/Users/savedis/Documents/TTB-blog"
-
     subprocess.run(["git", "add", "."], cwd=repo_path)
     subprocess.run(["git", "commit", "-m", "Automated blog post"], cwd=repo_path)
-
-    # Safe pull to rebase with remote before pushing
     subprocess.run(["git", "pull", "--rebase"], cwd=repo_path)
-
-    # Now push your changes
     subprocess.run(["git", "push", "--set-upstream", "origin", "main"], cwd=repo_path)
     print("✅ Changes pushed to GitHub!")
 
-# Main automation function
+# Main runner
 def run_blog_automation():
     print("🚀 Running blog automation now...")
     category = get_topic_from_index()
@@ -119,6 +112,5 @@ def run_blog_automation():
     save_post(category, content)
     push_to_github()
 
-# Run when script is executed
 if __name__ == "__main__":
     run_blog_automation()
