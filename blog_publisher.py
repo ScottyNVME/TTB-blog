@@ -10,18 +10,28 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Constants
 BLOG_DIR = "/Users/savedis/Documents/TTB-blog/_posts"
+TOPIC_INDEX_FILE = "/Users/savedis/Documents/TTB-blog/topic_index.txt"
 TOPICS = [
     ("grants", "Write a 700–750 word blog post about college grants, scholarships, or funding opportunities."),
     ("resume", "Write a fresh 700–750 word blog post on resume writing that reflects new hiring trends or job market shifts. Reference current formatting expectations, action verbs, or examples used in recent top-tier resumes. Make it engaging, original, and practical for job seekers."),
     ("essays", "Write a 700–750 word blog post about how to write a strong college admissions essay. Include updated advice relevant to the current admissions landscape and highlight fresh tips and common pitfalls to avoid.")
 ]
 
-# Rotate topic based on ISO week number
-def get_weekly_topic():
-    week_number = datetime.date.today().isocalendar()[1]
-    return TOPICS[week_number % len(TOPICS)]
+# Cycle through topics across runs (not just weeks)
+def get_next_topic():
+    index = 0
+    try:
+        if os.path.exists(TOPIC_INDEX_FILE):
+            with open(TOPIC_INDEX_FILE, "r") as f:
+                index = int(f.read().strip())
+        index = (index + 1) % len(TOPICS)
+    except Exception:
+        index = 0
+    with open(TOPIC_INDEX_FILE, "w") as f:
+        f.write(str(index))
+    return TOPICS[index]
 
-# Generate blog content with OpenAI, including current year/month and trending keywords
+# Generate blog content with OpenAI
 def generate_post(prompt):
     current_date = datetime.datetime.now().strftime("%B %Y")
     enriched_prompt = (
@@ -56,7 +66,7 @@ def save_post(category, content):
     print(f"✅ Blog post saved: {filepath}")
     return filepath
 
-# Commit and push to GitHub with upstream tracking
+# Commit and push to GitHub
 def push_to_github():
     print("📤 Committing and pushing to GitHub...")
     repo_path = "/Users/savedis/Documents/TTB-blog"
@@ -68,7 +78,7 @@ def push_to_github():
 
 # Main automation function
 def run_blog_automation():
-    category, prompt = get_weekly_topic()
+    category, prompt = get_next_topic()
     content = generate_post(prompt)
     save_post(category, content)
     push_to_github()
@@ -77,3 +87,4 @@ def run_blog_automation():
 if __name__ == "__main__":
     print("🚀 Running blog automation now...")
     run_blog_automation()
+
