@@ -105,7 +105,12 @@ def main():
         print("🛄🏼 Committing and pushing to GitHub...")
         subprocess.run(["git", "add", "."])
         subprocess.run(["git", "commit", "-m", "Automated blog post"])
-        subprocess.run(["git", "push"])
+
+        # Pull latest changes before pushing
+        subprocess.run(["git", "pull", "--rebase", "origin", "main"])
+
+        # Push to GitHub
+        subprocess.run(["git", "push", "origin", "main"])
         print("✅ Changes pushed to GitHub!")
         print("🎉 Blog generation complete.")
 
