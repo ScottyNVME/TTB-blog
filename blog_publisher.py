@@ -2,17 +2,15 @@ import os
 import openai
 import datetime
 import requests
-import markdownify
+import re
 from dotenv import load_dotenv
 import random
 import subprocess
-import re
 
 # Load environment variables
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Blog topics to choose from
 TOPICS = [
     "resume tips",
     "college essay advice",
@@ -26,32 +24,31 @@ TOPICS = [
     "personal branding"
 ]
 
-# Random tone variations
 tone_styles = ["playful", "thoughtful", "provocative", "professional"]
 
 def generate_title(topic):
     tone = random.choice(tone_styles)
-    prompt = (
-        f"Write a {tone} blog post title for the topic '{topic}'. "
-        f"Avoid clichés like 'in 2025', 'guide to', or 'navigating'. Make it original, catchy, and natural."
-    )
+    prompt = f"Write a {tone} blog post title for the topic '{topic}'. Avoid clichés and keep it engaging but natural."
     response = openai.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}]
     )
-    return response.choices[0].message.content.strip().strip('"')
+    return response.choices[0].message.content.strip()
 
-def clean_markdown(md_content):
-    # Remove bold markdown (**text**) to avoid messy formatting
-    cleaned = re.sub(r"\*\*(.*?)\*\*", r"\1", md_content)
-    return cleaned
+def clean_content(text):
+    # Remove markdown bold markers
+    text = text.replace("**", "")
+    
+    # Convert numbered headers to h3
+    text = re.sub(r'^(\d+)\.\s*(.*?)$', r'### \1. \2', text, flags=re.MULTILINE)
 
-def slugify(title):
-    slug = title.lower()
-    slug = re.sub(r"[^\w\s-]", "", slug)
-    slug = re.sub(r"[\s_-]+", "-", slug)
-    slug = slug.strip("-")
-    return slug
+    # Convert bullet points with bold headers to dash format
+    text = re.sub(r'^- \*\*(.+?)\*\*:', r'- \1:', text, flags=re.MULTILINE)
+    
+    return text.strip()
+
+def sanitize_filename(title):
+    return re.sub(r"[^a-zA-Z0-9\-]", "", title.replace(" ", "-")).lower()
 
 def generate_blog_post():
     topic = random.choice(TOPICS)
@@ -59,62 +56,65 @@ def generate_blog_post():
 
     while True:
         print(f"\n📝 Preview Title: {title}")
-        confirm = input("Do you want to continue with this title? (y = yes / r = refresh / n = cancel): ").strip().lower()
+        confirm = input("Use this title? (y = yes / r = refresh / n = cancel): ").strip().lower()
         if confirm == "y":
             break
         elif confirm == "r":
             topic = random.choice(TOPICS)
             title = generate_title(topic)
         else:
-            print("❌ Blog generation cancelled by user.")
+            print("❌ Blog generation cancelled.")
             return None
 
-    print("\n🚀 Running blog automation now...")
-    print(f"🧠 Generating blog post for topic: {topic}")
+    print(f"\n🚀 Generating blog post for topic: {topic}")
     date_str = datetime.date.today().strftime("%Y-%m-%d")
 
-    # Generate content
-    content_prompt = f"Write an engaging blog post titled: {title}. Keep it informative, polished, and 500-800 words. Use numbered or bulleted lists when helpful."
+    prompt = f"Write a 500-800 word blog post titled '{title}' without including the title at the top. Make it professional, informative, and engaging with section headers and bullet lists where helpful."
     content_response = openai.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role": "user", "content": content_prompt}]
+        messages=[{"role": "user", "content": prompt}]
     )
     raw_content = content_response.choices[0].message.content.strip()
-    markdown_content = markdownify.markdownify(raw_content)
-    markdown_content = clean_markdown(markdown_content)
+    clean_blog = clean_content(raw_content)
 
-    # Generate image
-    dalle_prompt = f"Create an illustrative blog image concept for the article titled '{title}'."
+    # Generate image using DALL·E
+    dalle_prompt = f"Create a blog image for an article titled '{title}'."
     dalle_response = openai.images.generate(
         prompt=dalle_prompt,
         n=1,
         size="1024x1024"
     )
     image_url = dalle_response.data[0].url
-    image_slug = slugify(topic)
-    image_filename = f"{date_str}-{image_slug}.png"
+    image_filename = f"{date_str}-{topic.replace(' ', '-')}.png"
     image_path = f"assets/images/{image_filename}"
 
-    image_data = requests.get(image_url).content
-    with open(image_path, "wb") as f:
-        f.write(image_data)
+    try:
+        image_data = requests.get(image_url).content
+        with open(image_path, "wb") as f:
+            f.write(image_data)
+    except Exception as e:
+        print(f"⚠️ Image download failed: {e}")
+        image_path = ""
 
-    # Save blog markdown
-    file_slug = slugify(title)
-    markdown_file = f"_posts/{date_str}-{file_slug}.md"
-    with open(markdown_file, "w", encoding="utf-8") as f:
+    # Save markdown
+    safe_title = title.replace('"', "'")
+    slug_title = sanitize_filename(title)
+    markdown_path = f"_posts/{date_str}-{slug_title}.md"
+    with open(markdown_path, "w", encoding="utf-8") as f:
         f.write(f"""---
 layout: post
-title: '{title}'
+title: "{safe_title}"
 date: {date_str}
-image: /assets/images/{image_filename}
+image: /{image_path}
 ---
 
-{markdown_content}
+### {title}
+
+{clean_blog}
 """)
 
-    print(f"✅ Blog post saved: {markdown_file}")
-    return markdown_file
+    print(f"✅ Blog post saved to: {markdown_path}")
+    return markdown_path
 
 def main():
     result = generate_blog_post()
@@ -124,8 +124,7 @@ def main():
         subprocess.run(["git", "commit", "-m", "Automated blog post"])
         subprocess.run(["git", "pull", "--rebase", "origin", "main"])
         subprocess.run(["git", "push", "origin", "main"])
-        print("✅ Changes pushed to GitHub!")
-        print("🎉 Blog generation complete.")
+        print("✅ Published!")
 
 if __name__ == "__main__":
     main()
