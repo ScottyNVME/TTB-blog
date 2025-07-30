@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Elevate Your Career with Smarter Professional Networking"
 date: 2025-07-29
 categories: professional networking
 image: "https://scottynvme.github.io/TTB-blog/assets/images/untitled.png"
@@ -7,8 +7,8 @@ image: "https://scottynvme.github.io/TTB-blog/assets/images/untitled.png"
 
 ```markdown
 ---
-title: Elevate Your Career in 2025 with Smarter Professional Networking
-date: July 7, 2025
+title: Elevate Your Career with Smarter Professional Networking
+date: July 29, 2025
 author: TTB Team
 ---
 
