@@ -85,14 +85,14 @@ def generate_blog_post():
     # Save blog markdown
     markdown_file = f"_posts/{date_str}-title-{title.replace(' ', '-').lower()}.md"
     with open(markdown_file, "w") as f:
-        f.write("""---
+        f.write(f"""---
 layout: post
-title: \"{}\"
-date: {}
-image: /assets/images/{}
+title: \"{title.replace('"', "'")}\"
+date: {date_str}
+image: /assets/images/{image_filename}
 ---
 
-""".format(title, date_str, image_filename))
+""")
         f.write(markdown_content)
 
     print(f"✅ Blog post saved: {markdown_file}")
