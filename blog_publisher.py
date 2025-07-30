@@ -92,6 +92,8 @@ date: {date_str}
 image: /assets/images/{image_filename}
 ---
 
+# {title}
+
 """)
         f.write(markdown_content)
 
@@ -102,7 +104,7 @@ def main():
     print("🚀 Running blog automation now...")
     result = generate_blog_post()
     if result:
-        print("🛄🏼 Committing and pushing to GitHub...")
+        print("💽 Committing and pushing to GitHub...")
         subprocess.run(["git", "add", "."])
         subprocess.run(["git", "commit", "-m", "Automated blog post"])
 
