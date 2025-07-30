@@ -1,122 +1,113 @@
 import os
 import openai
+import datetime
 import requests
-from datetime import datetime
+import markdownify as md
 from dotenv import load_dotenv
-from pathlib import Path
 import random
-import re
 import subprocess
 
 # Load environment variables
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Define topics
-topics = [
-    "resume writing",
-    "college admissions essays",
-    "grants and scholarships",
-    "career growth strategies",
-    "interview tips",
-    "professional networking",
+# Blog topics to choose from
+TOPICS = [
+    "resume tips",
+    "college essay advice",
+    "scholarship and grant opportunities",
+    "fellowships",
     "LinkedIn optimization",
-    "fellowship applications"
+    "interview tips",
+    "career pivots",
+    "remote work",
+    "side hustles",
+    "personal branding"
 ]
 
-# Dynamically select a topic
-topic = random.choice(topics)
+# Random tone variations for title creativity
+tone_styles = ["playful", "thoughtful", "provocative", "professional"]
 
-# Get current date
-today = datetime.today().strftime('%Y-%m-%d')
-month_year = datetime.today().strftime('%B %Y')
-
-# Generate prompt
-prompt = (
-    f"Write a fresh 700–750 word blog post about {topic}. "
-    f"Make sure it's relevant to {month_year}, based on real-world events, news, or job trends. "
-    f"Reference current best practices, industry terms, or formats relevant to this topic. "
-    f"Make it engaging, inspiring, and practical. Include a short call to action to visit tothroughbeyond.com. "
-    f"Base the writing style on previous TTB blog posts. Write in Markdown format."
-)
-
-# Print running status
-print("🚀 Running blog automation now...")
-print(f"🧠 Generating blog post for topic: {topic}")
-
-# OpenAI client setup
-client = openai.OpenAI()
-
-def generate_blog_post(prompt):
-    response = client.chat.completions.create(
+def generate_title(topic):
+    tone = random.choice(tone_styles)
+    title_prompt = (
+        f"Write a {tone} blog post title for the topic '{topic}'. "
+        f"Avoid clichés like 'in 2025', 'guide to', 'navigating'. Make it original, catchy, and natural."
+    )
+    response = openai.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}]
+        messages=[{"role": "user", "content": title_prompt}]
     )
-    return response.choices[0].message.content
+    return response.choices[0].message.content.strip()
 
-# Generate blog content
-content = generate_blog_post(prompt)
+def generate_blog_post():
+    topic = random.choice(TOPICS)
+    title = generate_title(topic)
 
-# Extract title from first line
-def extract_title(markdown_text):
-    match = re.match(r"#\s+(.*)", markdown_text)
-    return match.group(1).strip() if match else "Untitled"
+    while True:
+        print(f"\n📝 Preview Title: {title}")
+        confirm = input("Do you want to continue with this title? (y = yes / r = refresh / n = cancel): ").strip().lower()
+        if confirm == "y":
+            break
+        elif confirm == "r":
+            topic = random.choice(TOPICS)
+            title = generate_title(topic)
+        else:
+            print("❌ Blog generation cancelled by user.")
+            return None
 
-title = extract_title(content)
-slug = re.sub(r"[^\w]+", "-", title.lower()).strip("-")
-filename = f"{today}-title-{slug}.md"
+    print(f"🧠 Generating blog post for topic: {topic}")
+    date_str = datetime.date.today().strftime("%Y-%m-%d")
 
-# Generate DALLE image
-def generate_image(prompt_text, filename_slug):
-    dalle_prompt = f"Professional, clean, blog cover image for: {prompt_text}"
-    response = client.images.generate(
-        model="dall-e-3",
+    # Generate content
+    content_prompt = f"Write a blog post about: {title}. Make it informative, engaging, and around 500-800 words."
+    content_response = openai.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": content_prompt}]
+    )
+    markdown_content = md.markdownify(content_response.choices[0].message.content.strip())
+
+    # Generate image
+    dalle_prompt = f"Create an illustrative blog image concept for the article titled '{title}'."
+    dalle_response = openai.images.generate(
         prompt=dalle_prompt,
-        size="1024x1024",
-        quality="standard",
-        n=1
+        n=1,
+        size="1024x1024"
     )
-    image_url = response.data[0].url
-    image_filename = f"{filename_slug}.png"
+    image_url = dalle_response.data[0].url
+    image_filename = f"{date_str}-{topic.replace(' ', '-')}.png"
     image_path = f"assets/images/{image_filename}"
+
+    image_data = requests.get(image_url).content
     with open(image_path, "wb") as f:
-        f.write(requests.get(image_url).content)
-    return f"https://scottynvme.github.io/TTB-blog/{image_path}"
+        f.write(image_data)
 
-# Generate and download image
-image_url = generate_image(title, slug)
-
-# Add frontmatter to content
-frontmatter = f"""---
-title: "{title}"
-date: {today}
-categories: {topic}
-image: "{image_url}"
+    # Save blog markdown
+    markdown_file = f"_posts/{date_str}-title-{title.replace(' ', '-').lower()}.md"
+    with open(markdown_file, "w") as f:
+        f.write("""---
+layout: post
+title: \"{}\"
+date: {}
+image: /assets/images/{}
 ---
 
-"""
+""".format(title, date_str, image_filename))
+        f.write(markdown_content)
 
-# Save blog post
-output_path = f"_posts/{filename}"
-with open(output_path, "w") as f:
-    f.write(frontmatter + content)
+    print(f"✅ Blog post saved: {markdown_file}")
+    return markdown_file
 
-print(f"✅ Blog post saved: {output_path}")
+def main():
+    print("🚀 Running blog automation now...")
+    result = generate_blog_post()
+    if result:
+        print("🛄🏼 Committing and pushing to GitHub...")
+        subprocess.run(["git", "add", "."])
+        subprocess.run(["git", "commit", "-m", "Automated blog post"])
+        subprocess.run(["git", "push"])
+        print("✅ Changes pushed to GitHub!")
+        print("🎉 Blog generation complete.")
 
-# Update topic index (optional text index)
-with open("topic_index.txt", "a") as index_file:
-    index_file.write(f"{today} - {title} - {topic}\n")
-
-# Git commit and push
-print("🌐 Committing and pushing to GitHub...")
-
-try:
-    subprocess.run(["git", "add", "."], check=True)
-    subprocess.run(["git", "commit", "-m", "Automated blog post"], check=True)
-    subprocess.run(["git", "pull", "--rebase"], check=True)
-    subprocess.run(["git", "push"], check=True)
-    print("✅ Changes pushed to GitHub!")
-except subprocess.CalledProcessError as e:
-    print("❌ Git push failed. Please check for conflicts or remote changes.")
-    print(e)
-
+if __name__ == "__main__":
+    main()
