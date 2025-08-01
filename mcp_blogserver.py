@@ -62,9 +62,9 @@ def insert_image_into_body(body, image_url, title):
     paragraphs = body.split("\n\n")
     if len(paragraphs) > 1:
         image_block = (
-            f'<div class="blog-image-wrapper" style="max-width: 300px; margin: auto;">'
-            f'<img src="{image_url}" alt="Related Image" style="width: 100%; height: auto;">'
-            f'</div>'
+            f'<p align="center">'
+            f'<img src="{image_url}" alt="Related Image" width="300" />'
+            f'</p>'
         )
         paragraphs.insert(1, image_block)
     return "\n\n".join(paragraphs)
