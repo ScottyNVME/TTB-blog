@@ -7,6 +7,8 @@ import frontmatter
 from flask import Flask, jsonify, request, render_template_string
 from openai import OpenAI
 from dotenv import load_dotenv
+import threading
+import time
 
 load_dotenv()
 client = OpenAI()
@@ -92,7 +94,7 @@ def generate_blog(topic=None, include_image=True):
     if include_image:
         image_url = fetch_stock_image_url(topic)
         if not image_url:
-            image_url = fetch_ai_image_url(f"Illustration for blog post about {topic}")
+            image_url = fetch_ai_image_url(f"Flat-style banner illustration for blog post about {topic}")
         if image_url:
             body = insert_image_into_body(body, image_url, title)
 
@@ -151,7 +153,7 @@ def save_blog_post(title, body, topic):
 def homepage():
     return render_template_string("""
         <h1>📝 MCP Blog Generator</h1>
-        <form action="/generate-ui" method="get">
+        <form action="/generate-ui" method="get" onsubmit="startProgressBar()">
             <label for="topic">Select Topic:</label>
             <select name="topic" id="topic">
                 {% for key in topics %}
@@ -161,6 +163,24 @@ def homepage():
             <label><input type="checkbox" name="image" checked> Include Image</label><br><br>
             <button type="submit">Generate Blog</button>
         </form>
+        <div style="margin-top:20px; width:100%; background:#ddd; height:20px;">
+            <div id="progress-bar" style="width:0%; height:100%; background: red; transition: width 0.5s, background-color 0.5s;"></div>
+        </div>
+        <script>
+            function startProgressBar() {
+                let bar = document.getElementById('progress-bar');
+                let width = 0;
+                let interval = setInterval(() => {
+                    if (width >= 100) {
+                        clearInterval(interval);
+                    } else {
+                        width++;
+                        bar.style.width = width + '%';
+                        bar.style.backgroundColor = `rgb(${255 - Math.floor(2.55 * width)}, ${Math.floor(2.55 * width)}, 0)`;
+                    }
+                }, 50);
+            }
+        </script>
     """, topics=topic_keys)
 
 @app.route("/generate-ui", methods=["GET"])
