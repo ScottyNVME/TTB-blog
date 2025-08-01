@@ -58,10 +58,17 @@ def fetch_ai_image_url(prompt):
         print(f"Error generating AI image: {e}")
     return None
 
-def insert_image_into_body(body, image_url):
+def insert_image_into_body(body, image_url, title):
+    if not body.strip().startswith("## "):
+        body = f"## {title}\n\n" + body
+
     paragraphs = body.split("\n\n")
     if len(paragraphs) > 1:
-        image_block = f'<div style="float: right; width: 20%; margin-left: 1rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center;"><img src="{image_url}" alt="Related Image" style="max-width: 100%; height: auto;"></div>'
+        image_block = (
+            f'<div style="float: right; width: 200px; max-width: 25%; margin-left: 1rem; margin-bottom: 1rem; ' 
+            f'display: block;"><img src="{image_url}" alt="Related Image" ' 
+            f'style="width: 100%; height: auto; border-radius: 8px;"></div>'
+        )
         paragraphs.insert(1, image_block)
     return "\n\n".join(paragraphs)
 
@@ -97,7 +104,7 @@ def generate_blog(topic=None, include_image=True):
         if not image_url:
             image_url = fetch_ai_image_url(f"Illustration for blog post about {topic}")
         if image_url:
-            body = insert_image_into_body(body, image_url)
+            body = insert_image_into_body(body, image_url, title)
 
     filename = save_blog_post(title, body, topic)
     return {"title": title, "file": filename}
