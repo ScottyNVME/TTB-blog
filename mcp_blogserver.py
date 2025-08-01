@@ -60,13 +60,14 @@ def insert_image_into_body(body, image_url, title):
         body = f"## {title}\n\n" + body
 
     paragraphs = body.split("\n\n")
-    if len(paragraphs) > 1:
+    if len(paragraphs) > 2:
         image_block = (
-            f'<p align="center">'
-            f'<img src="{image_url}" alt="Related Image" width="300" />'
-            f'</p>'
+            f'<div style="display: flex; justify-content: center; margin: 40px 0;">'
+            f'<img src="{image_url}" alt="Related Image" style="width: 360px; height: auto;" />'
+            f'</div>'
         )
-        paragraphs.insert(1, image_block)
+        insert_index = len(paragraphs) // 2
+        paragraphs.insert(insert_index, image_block)
     return "\n\n".join(paragraphs)
 
 def generate_blog(topic=None, include_image=True):
