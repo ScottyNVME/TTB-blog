@@ -72,6 +72,7 @@ def slugify(text):
         .replace("'", "")
         .replace(",", "")
         .replace(".", "")
+        .replace("*", "")
     )
 
 def save_blog_post(title, body, topic):
@@ -80,21 +81,30 @@ def save_blog_post(title, body, topic):
     filename = f"{date}-{slug}.md"
     filepath = os.path.join("_posts", filename)
 
-    post = frontmatter.Post(body, **{
-        "title": title,
-        "tags": [topic, "ai-generated", "blog"],
-        "date": datetime.datetime.now().isoformat(),
-        "topic": topic
-    })
+    try:
+        post = frontmatter.Post(body, **{
+            "title": title,
+            "tags": [topic, "ai-generated", "blog"],
+            "date": datetime.datetime.now().isoformat(),
+            "topic": topic
+        })
 
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(frontmatter.dumps(post))
+        os.makedirs("_posts", exist_ok=True)
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(frontmatter.dumps(post))
 
-    os.system("git add .")
-    os.system(f"git commit -m 'Add new blog post: {title}'")
-    os.system("git push")
+        os.system("git add .")
+        os.system(f"git commit -m 'Add new blog post: {title}'")
+        os.system("git push")
+
+    except Exception as e:
+        print(f"Error saving blog post: {e}")
 
     return filename
+
+@app.route("/", methods=["GET"])
+def homepage():
+    return "<h1>📝 MCP Blog Generator is running!</h1><p>Try <code>/generate</code> or <code>/generate/resume</code></p>"
 
 @app.route("/generate", methods=["GET"])
 def generate_next():
