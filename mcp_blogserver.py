@@ -61,7 +61,7 @@ def fetch_ai_image_url(prompt):
 def insert_image_into_body(body, image_url):
     paragraphs = body.split("\n\n")
     if len(paragraphs) > 1:
-        image_block = f'<div style="float: right; width: 25%; margin-left: 1rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; height: 100%;"><img src="{image_url}" alt="Related Image" style="max-width: 100%; height: auto;"></div>'
+        image_block = f'<div style="float: right; width: 20%; margin-left: 1rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center;"><img src="{image_url}" alt="Related Image" style="max-width: 100%; height: auto;"></div>'
         paragraphs.insert(1, image_block)
     return "\n\n".join(paragraphs)
 
