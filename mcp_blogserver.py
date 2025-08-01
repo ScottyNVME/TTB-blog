@@ -1,6 +1,7 @@
 import os
 import json
 import datetime
+import re
 import frontmatter
 from flask import Flask, jsonify
 from openai import OpenAI
@@ -25,6 +26,9 @@ def load_style_sample():
             return f.read().strip()
     except FileNotFoundError:
         return ""
+
+def clean_title(text):
+    return re.sub(r"[*_`~]", "", text)
 
 def generate_blog(topic=None):
     global topic_index
@@ -51,6 +55,7 @@ def generate_blog(topic=None):
 
     full_content = response.choices[0].message.content.strip()
     title, body = extract_title_and_body(full_content)
+    title = clean_title(title)
     filename = save_blog_post(title, body, topic)
     return {"title": title, "file": filename}
 
