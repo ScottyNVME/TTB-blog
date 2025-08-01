@@ -4,7 +4,7 @@ import datetime
 import re
 import requests
 import frontmatter
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, render_template_string
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -18,7 +18,7 @@ UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 PROMPT_TOPICS = {
     "resume": "Write a professional blog post about creating a modern, standout resume in today's job market. Use the following format: start with '## Crafting a Standout Resume', then include an introduction (~100 words), followed by three sections using '###' headers ('### Why Design Matters', '### What to Include', etc.), and finish with a '### Final Thoughts' conclusion. Use markdown formatting, callout examples, and short paragraphs to improve readability. Target 700 to 750 words.",
     "college": "Write a professional blog post about crafting a strong college application. Start with a title like '## How to Build a Winning College Application', then write an intro (~100 words), three well-organized sections using '###' headers, and a concluding '### Final Thoughts'. Format with markdown, include bullet points or examples if relevant, and ensure clear flow. Aim for 700 to 750 words.",
-    "grants": "Write a professional blog post on winning grants. Begin with '## Guide to Winning Grants in 2025', write an engaging intro (~100 words), then break into 3 structured '###' sections with advice, and conclude with a '### Summary' or 'Final Thoughts' section. Use markdown, keep paragraphs tight and skimmable, and aim for 700 to 750 words total.",
+    "grants": "Write a professional blog post on winning grants. Begin with '## Guide to Winning Grants in 2025', write an engaging intro (~100 words), then break into 3 structured '###' sections with advice, and conclude with a '### Summary' or 'Final Thoughts' section. Use markdown, keep paragraphs tight and skimmable, and aim for 700 to 750 words total."
 }
 topic_keys = list(PROMPT_TOPICS.keys())
 topic_index = 0
@@ -61,11 +61,11 @@ def fetch_ai_image_url(prompt):
 def insert_image_into_body(body, image_url):
     paragraphs = body.split("\n\n")
     if len(paragraphs) > 1:
-        image_block = f'<div style="float: right; width: 40%; margin-left: 1rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; height: 100%;"><img src="{image_url}" alt="Related Image" style="max-width: 100%; height: auto;"></div>'
+        image_block = f'<div style="float: right; width: 25%; margin-left: 1rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; height: 100%;"><img src="{image_url}" alt="Related Image" style="max-width: 100%; height: auto;"></div>'
         paragraphs.insert(1, image_block)
     return "\n\n".join(paragraphs)
 
-def generate_blog(topic=None):
+def generate_blog(topic=None, include_image=True):
     global topic_index
     if topic is None:
         topic = topic_keys[topic_index]
@@ -92,12 +92,12 @@ def generate_blog(topic=None):
     title, body = extract_title_and_body(full_content)
     title = clean_title(title)
 
-    image_url = fetch_stock_image_url(topic)
-    if not image_url:
-        image_url = fetch_ai_image_url(f"Illustration for blog post about {topic}")
-
-    if image_url:
-        body = insert_image_into_body(body, image_url)
+    if include_image:
+        image_url = fetch_stock_image_url(topic)
+        if not image_url:
+            image_url = fetch_ai_image_url(f"Illustration for blog post about {topic}")
+        if image_url:
+            body = insert_image_into_body(body, image_url)
 
     filename = save_blog_post(title, body, topic)
     return {"title": title, "file": filename}
@@ -152,20 +152,41 @@ def save_blog_post(title, body, topic):
 
 @app.route("/", methods=["GET"])
 def homepage():
-    return "<h1>\ud83d\udcdd MCP Blog Generator is running!</h1><p>Try <code>/generate</code> or <code>/generate/resume</code></p>"
+    return render_template_string("""
+        <h1>📝 MCP Blog Generator</h1>
+        <form action="/generate-ui" method="get">
+            <label for="topic">Select Topic:</label>
+            <select name="topic" id="topic">
+                {% for key in topics %}
+                    <option value="{{ key }}">{{ key.capitalize() }}</option>
+                {% endfor %}
+            </select><br><br>
+            <label><input type="checkbox" name="image" checked> Include Image</label><br><br>
+            <button type="submit">Generate Blog</button>
+        </form>
+    """, topics=topic_keys)
+
+@app.route("/generate-ui", methods=["GET"])
+def generate_ui():
+    topic = request.args.get("topic", "resume").lower()
+    include_image = request.args.get("image") == "on"
+    result = generate_blog(topic, include_image=include_image)
+    return f"<h2>✅ Blog Generated</h2><p><b>Title:</b> {result['title']}</p><p><b>File:</b> {result['file']}</p><p><a href='/'>⬅️ Back</a></p>"
 
 @app.route("/generate", methods=["GET"])
 def generate_next():
-    return jsonify(generate_blog())
+    include_image = request.args.get("image", "true").lower() != "false"
+    return jsonify(generate_blog(include_image=include_image))
 
 @app.route("/generate/<topic>", methods=["GET"])
 def generate_by_topic(topic):
     topic = topic.lower()
     if topic not in PROMPT_TOPICS:
         return jsonify({"error": "Unsupported topic."}), 400
+    include_image = request.args.get("image", "true").lower() != "false"
     global topic_index
     topic_index = topic_keys.index(topic)
-    return jsonify(generate_blog(topic))
+    return jsonify(generate_blog(topic, include_image=include_image))
 
 if __name__ == "__main__":
     app.run(debug=True)
