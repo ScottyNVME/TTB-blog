@@ -65,7 +65,7 @@ def insert_image_into_body(body, image_url, title):
     paragraphs = body.split("\n\n")
     if len(paragraphs) > 1:
         image_block = (
-            f'<div style="float: right; width: 220px; margin-left: 1rem; margin-bottom: 1rem;">'
+            f'<div style="float: right; width: 150px; margin-left: 1rem; margin-bottom: 1rem;">'
             f'<img src="{image_url}" alt="Related Image" '
             f'style="width: 100%; height: auto; border-radius: 8px;">'
             f'</div>'
