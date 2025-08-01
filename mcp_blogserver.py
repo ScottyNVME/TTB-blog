@@ -2,6 +2,7 @@ import os
 import json
 import datetime
 import re
+import requests
 import frontmatter
 from flask import Flask, jsonify
 from openai import OpenAI
@@ -11,6 +12,8 @@ load_dotenv()
 client = OpenAI()
 
 app = Flask(__name__)
+
+UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 
 PROMPT_TOPICS = {
     "resume": "Write a professional blog post about creating a modern, standout resume in today's job market. Use the following format: start with '## Crafting a Standout Resume', then include an introduction (~100 words), followed by three sections using '###' headers ('### Why Design Matters', '### What to Include', etc.), and finish with a '### Final Thoughts' conclusion. Use markdown formatting, callout examples, and short paragraphs to improve readability. Target 700 to 750 words.",
@@ -29,6 +32,38 @@ def load_style_sample():
 
 def clean_title(text):
     return re.sub(r"[*_`~]", "", text)
+
+def fetch_stock_image_url(topic):
+    try:
+        response = requests.get(
+            f"https://api.unsplash.com/photos/random?query={topic}&orientation=landscape&client_id={UNSPLASH_ACCESS_KEY}"
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return data["urls"]["regular"]
+    except Exception as e:
+        print(f"Error fetching stock image: {e}")
+    return None
+
+def fetch_ai_image_url(prompt):
+    try:
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            n=1,
+            size="1024x1024"
+        )
+        return response.data[0].url
+    except Exception as e:
+        print(f"Error generating AI image: {e}")
+    return None
+
+def insert_image_into_body(body, image_url):
+    paragraphs = body.split("\n\n")
+    if len(paragraphs) > 1:
+        image_block = f'<div style="float: right; width: 40%; margin-left: 1rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; height: 100%;"><img src="{image_url}" alt="Related Image" style="max-width: 100%; height: auto;"></div>'
+        paragraphs.insert(1, image_block)
+    return "\n\n".join(paragraphs)
 
 def generate_blog(topic=None):
     global topic_index
@@ -56,6 +91,14 @@ def generate_blog(topic=None):
     full_content = response.choices[0].message.content.strip()
     title, body = extract_title_and_body(full_content)
     title = clean_title(title)
+
+    image_url = fetch_stock_image_url(topic)
+    if not image_url:
+        image_url = fetch_ai_image_url(f"Illustration for blog post about {topic}")
+
+    if image_url:
+        body = insert_image_into_body(body, image_url)
+
     filename = save_blog_post(title, body, topic)
     return {"title": title, "file": filename}
 
@@ -109,7 +152,7 @@ def save_blog_post(title, body, topic):
 
 @app.route("/", methods=["GET"])
 def homepage():
-    return "<h1>📝 MCP Blog Generator is running!</h1><p>Try <code>/generate</code> or <code>/generate/resume</code></p>"
+    return "<h1>\ud83d\udcdd MCP Blog Generator is running!</h1><p>Try <code>/generate</code> or <code>/generate/resume</code></p>"
 
 @app.route("/generate", methods=["GET"])
 def generate_next():
