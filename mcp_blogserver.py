@@ -13,9 +13,9 @@ client = OpenAI()
 app = Flask(__name__)
 
 PROMPT_TOPICS = {
-    "resume": "Write a professional blog post about creating a modern, standout resume in today's job market.",
-    "college": "Write an insightful and inspiring blog post about preparing a strong college application.",
-    "grants": "Write a helpful blog post on how to apply for and win educational or small business grants.",
+    "resume": "Write a professional blog post about creating a modern, standout resume in today's job market. Include a clear introduction, 2-3 structured sections with bold subheadings, and a strong conclusion. The total length should be roughly 700 to 750 words.",
+    "college": "Write an insightful and inspiring blog post about preparing a strong college application. Include a compelling intro, key sections with bold headings, and a wrap-up conclusion. The total length should be roughly 700 to 750 words.",
+    "grants": "Write a helpful blog post on how to apply for and win educational or small business grants. Start with a summary intro, then structured tips in sections, and end with a motivational conclusion. The total length should be roughly 700 to 750 words.",
 }
 topic_keys = list(PROMPT_TOPICS.keys())
 topic_index = 0
@@ -38,7 +38,7 @@ def generate_blog(topic=None):
 
     style_sample = load_style_sample()
     system_prompt = (
-        "You are a helpful and professional blog writer. Format your writing with clean paragraphs, bold headings, and clear structure."
+        "You are a helpful and professional blog writer. Format your writing with a clear introduction, well-structured body using bold subheadings for each section, and a concise conclusion. Ensure clean paragraph spacing and natural flow. Target a length of approximately 700 to 750 words."
     )
     if style_sample:
         system_prompt += f"\nMatch the tone and flow of the following writing sample:\n---\n{style_sample}\n---"
