@@ -31,7 +31,7 @@ def load_style_sample():
         return ""
 
 def clean_title(text):
-    return re.sub(r"[*_`~]", "", text)
+    return re.sub(r"[*_`~#]", "", text).strip()
 
 def fetch_stock_image_url(topic):
     try:
@@ -59,15 +59,16 @@ def fetch_ai_image_url(prompt):
     return None
 
 def insert_image_into_body(body, image_url, title):
-    if not body.strip().startswith("## "):
+    if not body.strip().lower().startswith("##"):
         body = f"## {title}\n\n" + body
 
     paragraphs = body.split("\n\n")
     if len(paragraphs) > 1:
         image_block = (
-            f'<div style="float: right; width: 200px; max-width: 25%; margin-left: 1rem; margin-bottom: 1rem; ' 
-            f'display: block;"><img src="{image_url}" alt="Related Image" ' 
-            f'style="width: 100%; height: auto; border-radius: 8px;"></div>'
+            f'<div style="float: right; width: 220px; margin-left: 1rem; margin-bottom: 1rem;">'
+            f'<img src="{image_url}" alt="Related Image" '
+            f'style="width: 100%; height: auto; border-radius: 8px;">'
+            f'</div>'
         )
         paragraphs.insert(1, image_block)
     return "\n\n".join(paragraphs)
@@ -112,10 +113,10 @@ def generate_blog(topic=None, include_image=True):
 def extract_title_and_body(content):
     lines = content.strip().split("\n")
     if lines[0].lower().startswith("title:"):
-        title = lines[0][6:].strip()
+        title = clean_title(lines[0][6:].strip())
         body = "\n".join(lines[1:]).strip()
     else:
-        title = lines[0].strip()
+        title = clean_title(lines[0].strip())
         body = "\n".join(lines[1:]).strip()
     return title, body
 
