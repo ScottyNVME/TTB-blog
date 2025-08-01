@@ -13,9 +13,9 @@ client = OpenAI()
 app = Flask(__name__)
 
 PROMPT_TOPICS = {
-    "resume": "Write a professional blog post about creating a modern, standout resume in today's job market. Start with a bold and clearly marked title (e.g. '## Title: ...'), followed by a clear introduction, 2-3 structured sections with bold subheadings (e.g. '### Section Title'), and a strong conclusion (e.g. '### Conclusion'). Use markdown formatting for structure and readability. Target a total length of 700 to 750 words.",
-    "college": "Write an insightful and inspiring blog post about preparing a strong college application. Use markdown formatting to clearly define the title ('## Title: ...'), the intro, 2-3 structured body sections with '###' subheadings, and a clear conclusion. Keep the post well structured and flowing naturally. Aim for 700 to 750 words total.",
-    "grants": "Write a helpful blog post on how to apply for and win educational or small business grants. Use markdown for structure: a title ('## Title: ...'), intro, clearly defined body sections using '###' subheadings, and an encouraging conclusion. Keep total length between 700 and 750 words.",
+    "resume": "Write a professional blog post about creating a modern, standout resume in today's job market. Use the following format: start with '## Crafting a Standout Resume', then include an introduction (~100 words), followed by three sections using '###' headers ('### Why Design Matters', '### What to Include', etc.), and finish with a '### Final Thoughts' conclusion. Use markdown formatting, callout examples, and short paragraphs to improve readability. Target 700 to 750 words.",
+    "college": "Write a professional blog post about crafting a strong college application. Start with a title like '## How to Build a Winning College Application', then write an intro (~100 words), three well-organized sections using '###' headers, and a concluding '### Final Thoughts'. Format with markdown, include bullet points or examples if relevant, and ensure clear flow. Aim for 700 to 750 words.",
+    "grants": "Write a professional blog post on winning grants. Begin with '## Guide to Winning Grants in 2025', write an engaging intro (~100 words), then break into 3 structured '###' sections with advice, and conclude with a '### Summary' or 'Final Thoughts' section. Use markdown, keep paragraphs tight and skimmable, and aim for 700 to 750 words total.",
 }
 topic_keys = list(PROMPT_TOPICS.keys())
 topic_index = 0
@@ -38,7 +38,7 @@ def generate_blog(topic=None):
 
     style_sample = load_style_sample()
     system_prompt = (
-        "You are a helpful and professional blog writer. Format your writing with markdown: begin with a clearly marked title (e.g. '## Title: ...'), a strong introduction, structured body with 2-3 bold subheadings (e.g. '### Heading'), and a closing conclusion. Use clean paragraph spacing and ensure the post flows naturally. Target around 700 to 750 words."
+        "You are a helpful and professional blog writer. Use a well-structured markdown layout: a bold title ('## Title'), a 100-word intro, 2-3 clear '###' sections with strong subheadings, and a '### Final Thoughts' conclusion. Use short paragraphs, examples, and formatting that looks like a polished blog. Target 700 to 750 words."
     )
     if style_sample:
         system_prompt += f"\nMatch the tone and flow of the following writing sample:\n---\n{style_sample}\n---"
