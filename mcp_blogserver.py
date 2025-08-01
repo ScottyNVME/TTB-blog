@@ -59,16 +59,8 @@ def insert_image_into_body(body, image_url, title):
     if not body.strip().lower().startswith("##"):
         body = f"## {title}\n\n" + body
 
-    paragraphs = body.split("\n\n")
-    if len(paragraphs) > 2:
-        image_block = (
-            f'<div style="float: right; margin: 10px 0 10px 30px; max-width: 518px;">'
-            f'<img src="{image_url}" alt="Related Image" style="width: 100%; height: auto;" />'
-            f'</div>'
-        )
-        insert_index = 1
-        paragraphs.insert(insert_index, image_block)
-    return "\n\n".join(paragraphs)
+    banner_block = f'<div style="width: 100%; margin: 20px 0;"><img src="{image_url}" alt="Banner Image" style="width: 100%; height: auto;" /></div>'
+    return banner_block + "\n\n" + body
 
 def generate_blog(topic=None, include_image=True):
     global topic_index
