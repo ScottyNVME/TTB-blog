@@ -62,9 +62,8 @@ def insert_image_into_body(body, image_url, title):
     paragraphs = body.split("\n\n")
     if len(paragraphs) > 2:
         image_block = (
-            f'<div style="display: flex; justify-content: center; margin: 40px 0;">'
-            f'<img src="{image_url}" alt="Related Image" style="width: 360px; height: auto;" />'
-            f'</div>'
+            f'<img src="{image_url}" alt="Related Image" '
+            f'style="float: right; margin: 10px 0 10px 30px; width: 432px; height: auto;" />'
         )
         insert_index = len(paragraphs) // 2
         paragraphs.insert(insert_index, image_block)
