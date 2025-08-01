@@ -59,7 +59,7 @@ def insert_image_into_body(body, image_url, title):
     if not body.strip().lower().startswith("##"):
         body = f"## {title}\n\n" + body
 
-    banner_block = f'<div style="width: 100%; margin: 20px 0;"><img src="{image_url}" alt="Banner Image" style="width: 100%; height: auto;" /></div>'
+    banner_block = f'<div style="width: 100%; margin: 20px 0;"><img src="{image_url}" alt="Banner Image" style="width: 100%; height: 100px; object-fit: cover;" /></div>'
     return banner_block + "\n\n" + body
 
 def generate_blog(topic=None, include_image=True):
