@@ -35,14 +35,11 @@ def clean_title(text):
 
 def fetch_stock_image_url(topic):
     try:
-        response = requests.get(
-            f"https://api.unsplash.com/photos/random?query={topic}&orientation=landscape&client_id={UNSPLASH_ACCESS_KEY}"
-        )
-        if response.status_code == 200:
-            data = response.json()
-            return data["urls"]["regular"]
+        image_path = f"assets/images/2025-07-29-{topic}.png"
+        if os.path.exists(image_path):
+            return "/" + image_path
     except Exception as e:
-        print(f"Error fetching stock image: {e}")
+        print(f"Error loading local image: {e}")
     return None
 
 def fetch_ai_image_url(prompt):
@@ -65,9 +62,8 @@ def insert_image_into_body(body, image_url, title):
     paragraphs = body.split("\n\n")
     if len(paragraphs) > 1:
         image_block = (
-            f'<div style="float: right; width: 150px; margin-left: 1rem; margin-bottom: 1rem;">'
-            f'<img src="{image_url}" alt="Related Image" '
-            f'style="width: 100%; height: auto; border-radius: 8px;">'
+            f'<div class="blog-image-wrapper" style="max-width: 300px; margin: auto;">'
+            f'<img src="{image_url}" alt="Related Image" style="width: 100%; height: auto;">'
             f'</div>'
         )
         paragraphs.insert(1, image_block)
