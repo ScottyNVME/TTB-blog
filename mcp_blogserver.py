@@ -4,11 +4,10 @@ import datetime
 import re
 import requests
 import frontmatter
-from flask import Flask, jsonify, request, render_template_string
+import threading
+from flask import Flask, jsonify, request, render_template_string, Response
 from openai import OpenAI
 from dotenv import load_dotenv
-import threading
-import time
 
 load_dotenv()
 client = OpenAI()
@@ -24,6 +23,8 @@ PROMPT_TOPICS = {
 }
 topic_keys = list(PROMPT_TOPICS.keys())
 topic_index = 0
+
+progress = {"value": 0}
 
 def load_style_sample():
     try:
@@ -65,7 +66,9 @@ def insert_image_into_body(body, image_url, title):
     return banner_block + "\n\n" + body
 
 def generate_blog(topic=None, include_image=True):
-    global topic_index
+    global topic_index, progress
+    progress["value"] = 0
+
     if topic is None:
         topic = topic_keys[topic_index]
         topic_index = (topic_index + 1) % len(topic_keys)
@@ -78,6 +81,8 @@ def generate_blog(topic=None, include_image=True):
         system_prompt += f"\nMatch the tone and flow of the following writing sample:\n---\n{style_sample}\n---"
 
     user_prompt = PROMPT_TOPICS[topic]
+    progress["value"] = 20
+
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
@@ -88,6 +93,8 @@ def generate_blog(topic=None, include_image=True):
     )
 
     full_content = response.choices[0].message.content.strip()
+    progress["value"] = 50
+
     title, body = extract_title_and_body(full_content)
     title = clean_title(title)
 
@@ -98,7 +105,9 @@ def generate_blog(topic=None, include_image=True):
         if image_url:
             body = insert_image_into_body(body, image_url, title)
 
+    progress["value"] = 80
     filename = save_blog_post(title, body, topic)
+    progress["value"] = 100
     return {"title": title, "file": filename}
 
 def extract_title_and_body(content):
@@ -149,11 +158,27 @@ def save_blog_post(title, body, topic):
 
     return filename
 
+@app.route("/progress", methods=["GET"])
+def get_progress():
+    return jsonify(progress)
+
+@app.route("/generate-ui", methods=["GET"])
+def generate_ui():
+    topic = request.args.get("topic", "resume").lower()
+    include_image = request.args.get("image") == "on"
+
+    def generate_and_stream():
+        yield "<html><body><h2>Generating Blog...</h2><div style='width: 100%; background: #eee; height: 30px;'><div id='bar' style='width:0%;height:100%;background:red;transition:width 0.3s, background 0.3s;'></div></div><script>let colors=['red','orange','yellow','green'];function updateBar() { fetch('/progress').then(r=>r.json()).then(p => { let bar=document.getElementById('bar'); bar.style.width=p.value+'%'; bar.style.background=colors[Math.min(Math.floor(p.value/25),3)]; if(p.value<100) setTimeout(updateBar,300); }); } updateBar();</script>"
+        result = generate_blog(topic, include_image=include_image)
+        yield f"<p><b>Title:</b> {result['title']}</p><p><b>File:</b> {result['file']}</p><p><a href='/'>⬅️ Back</a></p></body></html>"
+
+    return Response(generate_and_stream(), mimetype='text/html')
+
 @app.route("/", methods=["GET"])
 def homepage():
     return render_template_string("""
         <h1>📝 MCP Blog Generator</h1>
-        <form action="/generate-ui" method="get" onsubmit="startProgressBar()">
+        <form action="/generate-ui" method="get">
             <label for="topic">Select Topic:</label>
             <select name="topic" id="topic">
                 {% for key in topics %}
@@ -163,32 +188,7 @@ def homepage():
             <label><input type="checkbox" name="image" checked> Include Image</label><br><br>
             <button type="submit">Generate Blog</button>
         </form>
-        <div style="margin-top:20px; width:100%; background:#ddd; height:20px;">
-            <div id="progress-bar" style="width:0%; height:100%; background: red; transition: width 0.5s, background-color 0.5s;"></div>
-        </div>
-        <script>
-            function startProgressBar() {
-                let bar = document.getElementById('progress-bar');
-                let width = 0;
-                let interval = setInterval(() => {
-                    if (width >= 100) {
-                        clearInterval(interval);
-                    } else {
-                        width++;
-                        bar.style.width = width + '%';
-                        bar.style.backgroundColor = `rgb(${255 - Math.floor(2.55 * width)}, ${Math.floor(2.55 * width)}, 0)`;
-                    }
-                }, 50);
-            }
-        </script>
     """, topics=topic_keys)
-
-@app.route("/generate-ui", methods=["GET"])
-def generate_ui():
-    topic = request.args.get("topic", "resume").lower()
-    include_image = request.args.get("image") == "on"
-    result = generate_blog(topic, include_image=include_image)
-    return f"<h2>✅ Blog Generated</h2><p><b>Title:</b> {result['title']}</p><p><b>File:</b> {result['file']}</p><p><a href='/'>⬅️ Back</a></p>"
 
 @app.route("/generate", methods=["GET"])
 def generate_next():
