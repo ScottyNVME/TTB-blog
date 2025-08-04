@@ -62,8 +62,18 @@ def insert_image_into_body(body, image_url, title):
     if not body.strip().lower().startswith("##"):
         body = f"## {title}\n\n" + body
 
-    banner_block = f'<div style="width: 100%; margin: 20px 0;"><img src="{image_url}" alt="Banner Image" style="width: 100%; height: 100px; object-fit: cover;" /></div>'
+    banner_block = f'<div style="width: 100%; margin: 20px 0;"><img src="{image_url}" alt="Banner Image" style="width: 100%; height: 100px; object-fit: cover; object-position: center;" /></div>'
     return banner_block + "\n\n" + body
+
+def analyze_sentiment(text):
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You're an expert writing coach. Analyze the tone and sentiment of this blog. Respond in JSON with 'sentiment' and a brief 'tone_comment'."},
+            {"role": "user", "content": text}
+        ]
+    )
+    return json.loads(response.choices[0].message.content)
 
 def generate_blog(topic=None, include_image=True):
     global topic_index, progress
@@ -98,6 +108,8 @@ def generate_blog(topic=None, include_image=True):
     title, body = extract_title_and_body(full_content)
     title = clean_title(title)
 
+    sentiment_info = analyze_sentiment(body)
+
     if include_image:
         image_url = fetch_stock_image_url(topic)
         if not image_url:
@@ -106,9 +118,9 @@ def generate_blog(topic=None, include_image=True):
             body = insert_image_into_body(body, image_url, title)
 
     progress["value"] = 80
-    filename = save_blog_post(title, body, topic)
+    filename = save_blog_post(title, body, topic, sentiment_info)
     progress["value"] = 100
-    return {"title": title, "file": filename}
+    return {"title": title, "file": filename, "sentiment": sentiment_info}
 
 def extract_title_and_body(content):
     lines = content.strip().split("\n")
@@ -131,7 +143,7 @@ def slugify(text):
         .replace("*", "")
     )
 
-def save_blog_post(title, body, topic):
+def save_blog_post(title, body, topic, sentiment_info):
     slug = slugify(title)
     date = datetime.datetime.now().date()
     filename = f"{date}-{slug}.md"
@@ -142,7 +154,9 @@ def save_blog_post(title, body, topic):
             "title": title,
             "tags": [topic, "ai-generated", "blog"],
             "date": datetime.datetime.now().isoformat(),
-            "topic": topic
+            "topic": topic,
+            "sentiment": sentiment_info.get("sentiment"),
+            "tone_comment": sentiment_info.get("tone_comment")
         })
 
         os.makedirs("_posts", exist_ok=True)
@@ -170,7 +184,7 @@ def generate_ui():
     def generate_and_stream():
         yield "<html><body><h2>Generating Blog...</h2><div style='width: 100%; background: #eee; height: 30px;'><div id='bar' style='width:0%;height:100%;background:red;transition:width 0.3s, background 0.3s;'></div></div><script>let colors=['red','orange','yellow','green'];function updateBar() { fetch('/progress').then(r=>r.json()).then(p => { let bar=document.getElementById('bar'); bar.style.width=p.value+'%'; bar.style.background=colors[Math.min(Math.floor(p.value/25),3)]; if(p.value<100) setTimeout(updateBar,300); }); } updateBar();</script>"
         result = generate_blog(topic, include_image=include_image)
-        yield f"<p><b>Title:</b> {result['title']}</p><p><b>File:</b> {result['file']}</p><p><a href='/'>⬅️ Back</a></p></body></html>"
+        yield f"<p><b>Title:</b> {result['title']}</p><p><b>File:</b> {result['file']}</p><p><b>Sentiment:</b> {result['sentiment']['sentiment']} - {result['sentiment']['tone_comment']}</p><p><a href='/'>⬅️ Back</a></p></body></html>"
 
     return Response(generate_and_stream(), mimetype='text/html')
 
